@@ -8,7 +8,7 @@ from detectron2.layers import interpolate
 
 class Keypoints:
     """
-    Stores keypoint annotation data. GT Instances have a `gt_keypoints` property
+    Stores keypoint **annotation** data. GT Instances have a `gt_keypoints` property
     containing the x,y location and visibility flag of each keypoint. This tensor has shape
     (N, K, 3) where N is the number of instances and K is the number of keypoints per instance.
 
@@ -42,12 +42,15 @@ class Keypoints:
 
     def to_heatmap(self, boxes: torch.Tensor, heatmap_size: int) -> torch.Tensor:
         """
+        Convert keypoint annotations to a heatmap of one-hot labels for training,
+        as described in :paper:`Mask R-CNN`.
+
         Arguments:
             boxes: Nx4 tensor, the boxes to draw the keypoints to
 
         Returns:
             heatmaps:
-                A tensor of shape (N, K) containing an integer spatial label
+                A tensor of shape (N, K), each element is integer spatial label
                 in the range [0, heatmap_size**2 - 1] for each keypoint in the input.
             valid:
                 A tensor of shape (N, K) containing whether each keypoint is in the roi or not.
@@ -138,7 +141,6 @@ def _keypoints_to_heatmap(
     return heatmaps, valid
 
 
-@torch.no_grad()
 def heatmaps_to_keypoints(maps: torch.Tensor, rois: torch.Tensor) -> torch.Tensor:
     """
     Extract predicted keypoint locations from heatmaps.
@@ -156,6 +158,11 @@ def heatmaps_to_keypoints(maps: torch.Tensor, rois: torch.Tensor) -> torch.Tenso
     we maintain consistency with :meth:`Keypoints.to_heatmap` by using the conversion from
     Heckbert 1990: c = d + 0.5, where d is a discrete coordinate and c is a continuous coordinate.
     """
+    # The decorator use of torch.no_grad() was not supported by torchscript.
+    # https://github.com/pytorch/pytorch/pull/41371
+    maps = maps.detach()
+    rois = rois.detach()
+
     offset_x = rois[:, 0]
     offset_y = rois[:, 1]
 

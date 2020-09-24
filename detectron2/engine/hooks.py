@@ -238,9 +238,7 @@ class AutogradProfiler(HookBase):
     A hook which runs `torch.autograd.profiler.profile`.
 
     Examples:
-
-    .. code-block:: python
-
+    ::
         hooks.AutogradProfiler(
              lambda trainer: trainer.iter > 10 and trainer.iter < 20, self.cfg.OUTPUT_DIR
         )
@@ -255,7 +253,7 @@ class AutogradProfiler(HookBase):
         autograd profiler may cause deadlock because it unnecessarily allocates
         memory on every device it sees. The memory management calls, if
         interleaved with NCCL calls, lead to deadlock on GPUs that do not
-        support `cudaLaunchCooperativeKernelMultiDevice`.
+        support ``cudaLaunchCooperativeKernelMultiDevice``.
     """
 
     def __init__(self, enable_predicate, output_dir, *, use_cuda=True):
@@ -333,11 +331,11 @@ class EvalHook(HookBase):
             for k, v in flattened_results.items():
                 try:
                     v = float(v)
-                except Exception:
+                except Exception as e:
                     raise ValueError(
                         "[EvalHook] eval_function should return a nested dict of float. "
                         "Got '{}: {}' instead.".format(k, v)
-                    )
+                    ) from e
             self.trainer.storage.put_scalars(**flattened_results, smoothing_hint=False)
 
         # Evaluation may take different time among workers.
@@ -346,11 +344,13 @@ class EvalHook(HookBase):
 
     def after_step(self):
         next_iter = self.trainer.iter + 1
-        is_final = next_iter == self.trainer.max_iter
-        if is_final or (self._period > 0 and next_iter % self._period == 0):
+        if self._period > 0 and next_iter % self._period == 0:
             self._do_eval()
 
     def after_train(self):
+        # This condition is to prevent the eval from running after a failed training
+        if self.trainer.iter + 1 >= self.trainer.max_iter:
+            self._do_eval()
         # func is likely a closure that holds reference to the trainer
         # therefore we clean it to avoid circular reference in the end
         del self._func

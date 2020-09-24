@@ -94,9 +94,7 @@ def set_global_cfg(cfg: CfgNode) -> None:
 
     Assume that the given "cfg" has the key "KEY", after calling
     `set_global_cfg(cfg)`, the key can be accessed by:
-
-    .. code-block:: python
-
+    ::
         from detectron2.config import global_cfg
         print(global_cfg.KEY)
 
@@ -115,9 +113,7 @@ def configurable(init_func):
     object using the class's from_config classmethod.
 
     Examples:
-
-    .. code-block:: python
-
+    ::
         class A:
             @configurable
             def __init__(self, a, b=2, c=3):
@@ -142,8 +138,10 @@ def configurable(init_func):
     def wrapped(self, *args, **kwargs):
         try:
             from_config_func = type(self).from_config
-        except AttributeError:
-            raise AttributeError("Class with @configurable must have a 'from_config' classmethod.")
+        except AttributeError as e:
+            raise AttributeError(
+                "Class with @configurable must have a 'from_config' classmethod."
+            ) from e
         if not inspect.ismethod(from_config_func):
             raise TypeError("Class with @configurable must have a 'from_config' classmethod.")
 
